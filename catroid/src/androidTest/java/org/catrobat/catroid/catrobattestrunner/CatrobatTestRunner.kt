@@ -27,6 +27,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ActivityTestRule
 import org.junit.Assert
+import org.catrobat.catroid.TrustedDomainManager
 import org.catrobat.catroid.common.Constants
 import org.catrobat.catroid.common.FlavoredConstants
 import org.catrobat.catroid.io.StorageOperations
@@ -67,10 +68,38 @@ class CatrobatTestRunner {
         private const val TEST_ASSETS_ROOT = "catrobatTests"
         private const val TIMEOUT = 10_000
 
+        /**
+         * Optional instrumentation argument with a comma separated list of
+         * domains that are trusted before a CLT runs, e.g.:
+         *   -e cltTrustDomains=netflix.com,127.0.0.1
+         *
+         * Without the argument nothing is added.
+         */
+        private const val CLT_TRUST_DOMAINS_ARGUMENT = "cltTrustDomains"
+
+        private const val CLT_FILTER_ARGUMENT = "cltFilter"
+        private const val CLT_ROOT_ARGUMENT = "cltRoot"
+        private const val DEFAULT_CLT_ROOT = TEST_ASSETS_ROOT
+
         @JvmStatic
         @Parameterized.Parameters(name = "{0} - {1}")
         @Throws(IOException::class)
-        fun data(): Iterable<Array<Any>> = getCatrobatAssetsFromPath(TEST_ASSETS_ROOT)
+        fun data(): Iterable<Array<Any>> {
+            val arguments = InstrumentationRegistry.getArguments()
+            val root = arguments.getString(CLT_ROOT_ARGUMENT)
+                ?.takeIf { it.isNotBlank() }
+                ?: DEFAULT_CLT_ROOT
+
+            val assets = getCatrobatAssetsFromPath(root)
+            val filter = arguments.getString(CLT_FILTER_ARGUMENT).orEmpty()
+
+            if (filter.isEmpty()) {
+                return assets
+            }
+            return assets.filter { entry ->
+                "${entry[0]}/${entry[1]}".contains(filter, ignoreCase = true)
+            }
+        }
 
         @Throws(IOException::class)
         private fun getCatrobatAssetsFromPath(path: String): List<Array<Any>> {
@@ -94,6 +123,8 @@ class CatrobatTestRunner {
     @Before
     @Throws(Exception::class)
     fun setUp() {
+        applyTrustedDomains()
+
         val projectName = assetName.replace(Constants.CATROBAT_EXTENSION, "")
         TestUtils.deleteProjects(projectName)
         FlavoredConstants.DEFAULT_ROOT_DIRECTORY.mkdir()
@@ -107,6 +138,17 @@ class CatrobatTestRunner {
         Assert.assertTrue(
             loadProject(projectDir, ApplicationProvider.getApplicationContext())
         )
+    }
+
+    private fun applyTrustedDomains() {
+        val domains = InstrumentationRegistry.getArguments()
+            .getString(CLT_TRUST_DOMAINS_ARGUMENT)
+            .orEmpty()
+
+        domains.split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach { TrustedDomainManager.addToUserTrustList(it) }
     }
 
     @After
