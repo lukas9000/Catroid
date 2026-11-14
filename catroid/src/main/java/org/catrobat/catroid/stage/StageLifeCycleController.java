@@ -132,6 +132,10 @@ public final class StageLifeCycleController {
 	}
 
 	static void stagePause(final StageActivity stageActivity) {
+		if (StageActivity.stageListener == null) {
+			return;
+		}
+
 		if (checkPermission(stageActivity, getProjectsRuntimePermissionList(Build.VERSION.SDK_INT))) {
 			if (stageActivity.nfcAdapter != null) {
 				try {
@@ -176,6 +180,10 @@ public final class StageLifeCycleController {
 	}
 
 	public static void stageResume(final StageActivity stageActivity) {
+		if (StageActivity.stageListener == null) {
+			return;
+		}
+
 		if (stageActivity.dialogIsShowing()) {
 			return;
 		}

@@ -167,6 +167,10 @@ class BrickDialogManager(val stageActivity: StageActivity) :
 
     override fun onDismiss(dialog: DialogInterface) {
         openDialogs.remove(dialog as Dialog)
-        StageLifeCycleController.stageResume(stageActivity)
+        // The stage can be gone already, e.g. when a hanging CLT is torn down
+        // while its dialog is still open.
+        if (!stageActivity.isFinishing && !stageActivity.isDestroyed) {
+            StageLifeCycleController.stageResume(stageActivity)
+        }
     }
 }
