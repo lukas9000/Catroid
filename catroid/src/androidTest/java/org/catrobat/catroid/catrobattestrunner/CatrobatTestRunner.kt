@@ -66,7 +66,9 @@ class CatrobatTestRunner {
 
     companion object {
         private const val TEST_ASSETS_ROOT = "catrobatTests"
-        private const val TIMEOUT = 10_000
+        private const val DEFAULT_TIMEOUT = 10_000
+        private const val MIN_TIMEOUT = 1_000
+        private const val MAX_TIMEOUT = 120_000
 
         /**
          * Optional instrumentation argument with a comma separated list of
@@ -79,6 +81,16 @@ class CatrobatTestRunner {
 
         private const val CLT_FILTER_ARGUMENT = "cltFilter"
         private const val CLT_ROOT_ARGUMENT = "cltRoot"
+
+        /**
+         * Timeout for one test run in milliseconds, e.g.:
+         *   -e cltTimeout=30000
+         *
+         * Physical devices are slower than the CI emulator, so the default
+         * of 10 s is too tight for some tests there.
+         */
+        private const val CLT_TIMEOUT_ARGUMENT = "cltTimeout"
+
         private const val DEFAULT_CLT_ROOT = TEST_ASSETS_ROOT
 
         @JvmStatic
@@ -195,9 +207,10 @@ class CatrobatTestRunner {
 
     @Throws(InterruptedException::class)
     private fun waitForReady() {
+        val timeout = timeoutMillis()
         val intervalMillis = 10
         var waitedFor = 0
-        while (waitedFor < TIMEOUT) {
+        while (waitedFor < timeout) {
             if (baseActivityTestRule.activity.isDestroyed) {
                 return
             }
@@ -206,10 +219,20 @@ class CatrobatTestRunner {
         }
         Assert.fail(
             """
-            Timeout after ${TIMEOUT}ms
+            Timeout after ${timeout}ms
             Test never got into ready state - is the AssertEqualsBrick reached?
             
             """.trimIndent()
         )
+    }
+
+    private fun timeoutMillis(): Int {
+        val raw = InstrumentationRegistry.getArguments()
+            .getString(CLT_TIMEOUT_ARGUMENT)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return DEFAULT_TIMEOUT
+
+        return raw.toIntOrNull()?.coerceIn(MIN_TIMEOUT, MAX_TIMEOUT) ?: DEFAULT_TIMEOUT
     }
 }

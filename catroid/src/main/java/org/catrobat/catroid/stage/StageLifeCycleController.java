@@ -31,6 +31,7 @@ import android.util.Log;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 
+import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.badlogic.gdx.backends.android.surfaceview.GLSurfaceView20;
 
@@ -140,7 +141,7 @@ public final class StageLifeCycleController {
 				}
 			}
 
-			List<Sprite> sprites = ((StageListener) stageActivity.getApplicationListener()).getSpritesFromStage();
+			List<Sprite> sprites = getSpritesFromStage(stageActivity);
 
 			if (sprites != null) {
 				for (Sprite sprite : sprites) {
@@ -193,8 +194,7 @@ public final class StageLifeCycleController {
 				}
 			}
 
-			List<Sprite> sprites =
-					((StageListener) stageActivity.getApplicationListener()).getSpritesFromStage();
+			List<Sprite> sprites = getSpritesFromStage(stageActivity);
 			if (sprites != null) {
 				for (Sprite sprite : sprites) {
 					sprite.look.resumeParticleEffect();
@@ -240,6 +240,19 @@ public final class StageLifeCycleController {
 				StageActivity.stageListener.menuResume();
 			}
 		}
+	}
+
+	/**
+	 * Returns the sprites of the running stage, or null when the stage has
+	 * already been destroyed. Dismissing a dialog after the stage ended used to
+	 * crash with a NullPointerException here.
+	 */
+	private static List<Sprite> getSpritesFromStage(StageActivity stageActivity) {
+		ApplicationListener listener = stageActivity.getApplicationListener();
+		if (!(listener instanceof StageListener)) {
+			return null;
+		}
+		return ((StageListener) listener).getSpritesFromStage();
 	}
 
 	static void stageDestroy(StageActivity stageActivity) {
