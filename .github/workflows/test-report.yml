@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: dorny/test-reporter@v2
         with:
-          artifact: /(.*)-test-results-xml/     # artifact name
+          artifact: /(.*)-test-report-xml/      # artifact name
           name: JUnit $1 Tests               # Name of the check run which will be created
           path: '**/TEST-*.xml'             # Path to test results (inside artifact .zip)
           reporter: java-junit              # Format of test results
