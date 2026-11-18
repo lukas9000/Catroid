@@ -23,6 +23,7 @@
 package org.catrobat.catroid.catrobattestrunner
 
 import android.app.Instrumentation.ActivityResult
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ActivityTestRule
@@ -78,6 +79,17 @@ class CatrobatTestRunner {
          * Without the argument nothing is added.
          */
         private const val CLT_TRUST_DOMAINS_ARGUMENT = "cltTrustDomains"
+
+        /**
+         * Optional instrumentation argument with a comma separated list of
+         * runtime permissions to grant to the app under test before each run,
+         * e.g.:
+         *   -e cltGrantPermissions=CAMERA,RECORD_AUDIO
+         *
+         * Short names are expanded to android.permission.<NAME>.
+         * Without the argument nothing is granted.
+         */
+        private const val CLT_GRANT_PERMISSIONS_ARGUMENT = "cltGrantPermissions"
 
         private const val CLT_FILTER_ARGUMENT = "cltFilter"
         private const val CLT_ROOT_ARGUMENT = "cltRoot"
@@ -136,6 +148,7 @@ class CatrobatTestRunner {
     @Throws(Exception::class)
     fun setUp() {
         applyTrustedDomains()
+        grantPermissions()
 
         val projectName = assetName.replace(Constants.CATROBAT_EXTENSION, "")
         TestUtils.deleteProjects(projectName)
@@ -150,6 +163,32 @@ class CatrobatTestRunner {
         Assert.assertTrue(
             loadProject(projectDir, ApplicationProvider.getApplicationContext())
         )
+    }
+
+    private fun grantPermissions() {
+        val permissions = InstrumentationRegistry.getArguments()
+            .getString(CLT_GRANT_PERMISSIONS_ARGUMENT)
+            .orEmpty()
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        if (permissions.isEmpty()) {
+            return
+        }
+
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val packageName = instrumentation.targetContext.packageName
+
+        permissions.forEach { raw ->
+            val permission = if (raw.contains('.')) raw else "android.permission.$raw"
+            try {
+                instrumentation.uiAutomation.grantRuntimePermission(packageName, permission)
+                Log.i("CatrobatTestRunner", "granted $permission for $packageName")
+            } catch (exception: Exception) {
+                Assert.fail("Could not grant $permission: ${exception.message}")
+            }
+        }
     }
 
     private fun applyTrustedDomains() {
