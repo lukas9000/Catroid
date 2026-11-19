@@ -23,6 +23,8 @@
 package org.catrobat.catroid.catrobattestrunner
 
 import android.app.Instrumentation.ActivityResult
+import android.app.UiAutomation
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -186,17 +188,41 @@ class CatrobatTestRunner {
             return
         }
 
-        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        automation.executeShellCommand("svc nfc disable").close()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val automation = instrumentation.uiAutomation
+        runShell(automation, "svc nfc disable")
         Thread.sleep(700)
-        automation.executeShellCommand("svc nfc enable").close()
-        Thread.sleep(700)
+        runShell(automation, "svc nfc enable")
+
+        // Catroid opens the NFC settings when the adapter is off at stage
+        // start, and the stage then never becomes ready. Wait for the adapter
+        // and fail loudly instead of running into that dialog.
+        val deadline = System.currentTimeMillis() + 8000
+        while (System.currentTimeMillis() < deadline) {
+            if (nfcEnabled(automation)) {
+                break
+            }
+            Thread.sleep(200)
+        }
+        if (!nfcEnabled(automation)) {
+            Assert.fail("NFC did not come back after the reset - enable it on the phone")
+        }
 
         // The sensor values are static and survive between the CLTs of one
         // instrumentation run, so a test would see the previous tag.
         NfcHandler.setLastNfcTagId("0x0")
         NfcHandler.setLastNfcTagMessage("")
     }
+
+    /** Runs a shell command and returns its output once it has finished. */
+    private fun runShell(automation: UiAutomation, command: String): String =
+        automation.executeShellCommand(command).use { descriptor ->
+            String(ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes())
+        }
+
+    /** The NFC service reports "mState=on" while the adapter is enabled. */
+    private fun nfcEnabled(automation: UiAutomation): Boolean =
+        runShell(automation, "dumpsys nfc").contains("mState=on")
 
     private fun grantPermissions() {
         val permissions = InstrumentationRegistry.getArguments()
