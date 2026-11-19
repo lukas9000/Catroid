@@ -105,6 +105,9 @@ class CatrobatTestRunner {
          */
         private const val CLT_RESET_NFC_ARGUMENT = "cltResetNfc"
 
+        /** Project XML markers that mean the CLT talks to an NFC tag. */
+        private val NFC_MARKERS = listOf("NfcTagBrick", "WhenNfcBrick", "NFC_TAG")
+
         private const val CLT_FILTER_ARGUMENT = "cltFilter"
         private const val CLT_ROOT_ARGUMENT = "cltRoot"
 
@@ -185,10 +188,18 @@ class CatrobatTestRunner {
         }
     }
 
-    /** The project XML names the NFC bricks and sensor values explicitly. */
+    /**
+     * The project XML names the NFC bricks and sensor values explicitly. Every
+     * project has an (empty) nfcTagList element, so matching that would turn
+     * the reset on for all of them.
+     */
     private fun projectUsesNfc(projectDir: File): Boolean {
         val code = File(projectDir, "code.xml")
-        return code.isFile && code.readText().contains("Nfc", ignoreCase = true)
+        if (!code.isFile) {
+            return false
+        }
+        val xml = code.readText()
+        return NFC_MARKERS.any { xml.contains(it) }
     }
 
     private fun resetNfc() {
