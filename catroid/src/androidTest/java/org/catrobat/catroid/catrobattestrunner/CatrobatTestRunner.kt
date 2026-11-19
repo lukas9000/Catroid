@@ -34,6 +34,7 @@ import org.catrobat.catroid.common.FlavoredConstants
 import org.catrobat.catroid.io.StorageOperations
 import org.catrobat.catroid.io.asynctask.loadProject
 import org.catrobat.catroid.io.asynctask.unzipAndImportProjects
+import org.catrobat.catroid.nfc.NfcHandler
 import org.catrobat.catroid.stage.StageActivity
 import org.catrobat.catroid.stage.TestResult
 import org.catrobat.catroid.test.utils.TestUtils
@@ -90,6 +91,17 @@ class CatrobatTestRunner {
          * Without the argument nothing is granted.
          */
         private const val CLT_GRANT_PERMISSIONS_ARGUMENT = "cltGrantPermissions"
+
+        /**
+         * Optional instrumentation argument that restarts the NFC stack before
+         * every run, e.g.:
+         *   -e cltResetNfc=true
+         *
+         * The station needs it: after a while the phone stops running NFC
+         * discovery and never sees the emulated tag again, without any error.
+         * Restarting the stack makes it discover the tag of the next test.
+         */
+        private const val CLT_RESET_NFC_ARGUMENT = "cltResetNfc"
 
         private const val CLT_FILTER_ARGUMENT = "cltFilter"
         private const val CLT_ROOT_ARGUMENT = "cltRoot"
@@ -149,6 +161,7 @@ class CatrobatTestRunner {
     fun setUp() {
         applyTrustedDomains()
         grantPermissions()
+        resetNfc()
 
         val projectName = assetName.replace(Constants.CATROBAT_EXTENSION, "")
         TestUtils.deleteProjects(projectName)
@@ -163,6 +176,26 @@ class CatrobatTestRunner {
         Assert.assertTrue(
             loadProject(projectDir, ApplicationProvider.getApplicationContext())
         )
+    }
+
+    private fun resetNfc() {
+        val requested = InstrumentationRegistry.getArguments()
+            .getString(CLT_RESET_NFC_ARGUMENT)
+            .toBoolean()
+        if (!requested) {
+            return
+        }
+
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        automation.executeShellCommand("svc nfc disable").close()
+        Thread.sleep(700)
+        automation.executeShellCommand("svc nfc enable").close()
+        Thread.sleep(700)
+
+        // The sensor values are static and survive between the CLTs of one
+        // instrumentation run, so a test would see the previous tag.
+        NfcHandler.setLastNfcTagId("0x0")
+        NfcHandler.setLastNfcTagMessage("")
     }
 
     private fun grantPermissions() {
