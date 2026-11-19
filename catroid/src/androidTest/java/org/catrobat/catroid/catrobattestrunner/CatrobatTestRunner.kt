@@ -163,7 +163,6 @@ class CatrobatTestRunner {
     fun setUp() {
         applyTrustedDomains()
         grantPermissions()
-        resetNfc()
 
         val projectName = assetName.replace(Constants.CATROBAT_EXTENSION, "")
         TestUtils.deleteProjects(projectName)
@@ -178,6 +177,18 @@ class CatrobatTestRunner {
         Assert.assertTrue(
             loadProject(projectDir, ApplicationProvider.getApplicationContext())
         )
+
+        // Only CLTs that touch NFC need the stack reset; it costs a few
+        // seconds and would slow down every other test for nothing.
+        if (projectUsesNfc(projectDir)) {
+            resetNfc()
+        }
+    }
+
+    /** The project XML names the NFC bricks and sensor values explicitly. */
+    private fun projectUsesNfc(projectDir: File): Boolean {
+        val code = File(projectDir, "code.xml")
+        return code.isFile && code.readText().contains("Nfc", ignoreCase = true)
     }
 
     private fun resetNfc() {
