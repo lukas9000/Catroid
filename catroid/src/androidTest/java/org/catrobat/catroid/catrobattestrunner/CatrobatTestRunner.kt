@@ -238,6 +238,7 @@ class CatrobatTestRunner {
     @After
     @Throws(IOException::class)
     fun tearDown() {
+        finishStage()
         StorageOperations.deleteDir(Constants.CACHE_DIRECTORY)
         TestUtils.deleteProjects(assetName.replace(Constants.CATROBAT_EXTENSION, ""))
     }
@@ -265,6 +266,22 @@ class CatrobatTestRunner {
 
         if (result?.resultCode != TestResult.STAGE_ACTIVITY_TEST_SUCCESS) {
             Assert.fail(messages.toString())
+        }
+    }
+
+    /**
+     * A CLT that times out leaves its stage running; the next test then cannot
+     * launch a new activity ("event queue was never idle"). Finish it here so
+     * one failure does not take the rest of the suite down with it.
+     */
+    private fun finishStage() {
+        try {
+            val activity = baseActivityTestRule.activity
+            if (activity != null && !activity.isDestroyed) {
+                baseActivityTestRule.finishActivity()
+            }
+        } catch (exception: Exception) {
+            Log.d("CatrobatTestRunner", "no stage to finish: ${exception.message}")
         }
     }
 
