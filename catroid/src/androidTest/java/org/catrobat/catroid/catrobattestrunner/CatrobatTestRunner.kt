@@ -213,7 +213,7 @@ class CatrobatTestRunner {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val automation = instrumentation.uiAutomation
         runShell(automation, "svc nfc disable")
-        Thread.sleep(700)
+        Thread.sleep(300)
         runShell(automation, "svc nfc enable")
 
         // Catroid opens the NFC settings when the adapter is off at stage
